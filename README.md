@@ -1,0 +1,1 @@
+This repo contains code to generate and visualize 3D heatmpas of NeRF-generated 3D AOI reconstructions.
