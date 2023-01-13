@@ -5,50 +5,31 @@ from OpenGL.GL import *
 from pyrr import Vector3, vector
 from PIL import Image
 import cv2
-import json
-import torch
 
 from pyflux.camera import Camera
-from pyflux.mesh import HeatTriMesh, load_glb, load_ply
+from pyflux.mesh import HeatTriMesh, load_glb
 from pyflux.pose_visualizer import PoseVisualizer
-from pyflux.shader import (
-    DepthTextureShader,
-    ShadowMapper,
-    CircleShader,
-    TexturedHeatMapShader,
-    NormalShader,
-)
+from pyflux.shader import DepthTextureShader, HeatMapShader, ShadowMapper, CircleShader
 from pyflux.window import GLContext, GLFWWindow
 
-record_flag = True
-record_resolution = 1000, 1000
+record_flag = False
+record_resolution = 800, 800
 record_path = "/home/kd/Desktop/flux.mp4"
 
 ###########################################################################
 
-# meshes = load_glb("/home/kd/Desktop/flux/livingroom3.glb", subdivisions=0)
+meshes = load_glb("/cluster/users/Kai/nerfstudio/models/cubes.glb", subdivisions=0)
 
-meshes = load_ply("/home/kd/Desktop/flux/livingroom.ply", subdivisions=1)
 ###########################################################################
 
 global_cam = Camera()
-
-# global_cam.camera_pos = Vector3([0.31316081, 0.40071118, 3.49734914])
-# global_cam.camera_front = Vector3([-0.03519388, -0.35787908, -0.93310447])
-# global_cam.camera_up = Vector3([-0.01348853, 0.93376794, -0.3576248])
-# global_cam.camera_right = Vector3([0.99928947, 0.0, -0.03769018])
-
-global_cam.camera_pos = Vector3([0.0, -10.0, -10.0])
-global_cam.camera_front = -global_cam.camera_pos
-global_cam.camera_up = Vector3([0, 0, 1])
-global_cam.camera_right = Vector3([1, 0, 0])
-
+global_cam.camera_pos = Vector3([0, 20, 35])
+global_cam.camera_front = vector.normalise(-global_cam.camera_pos)
 global_view = global_cam.get_view_matrix()
 
 ###########################################################################
 
 pov_cam = Camera()
-pov_cam.camera_pos = Vector3([0.0, 0.0, 0.0])
 
 ###########################################################################
 
@@ -59,7 +40,7 @@ left, right, forward, backward = False, False, False, False
 
 ###########################################################################
 
-near_pane, far_plane = 0.01, 100.0
+near_pane, far_plane = 0.01, 30.0
 
 ###########################################################################
 
@@ -68,60 +49,19 @@ glfw.swap_interval(1)
 
 ###########################################################################
 
-context = GLContext(FSAA_MODE=11)
+context = GLContext(FSAA_MODE=5)
 
 ###########################################################################
 
-# shadow_mapper = ShadowMapper(width=width, height=height)
-# heatmap_shader = TexturedHeatMapShader(cm="jet")
-# depth_texture_shader = DepthTextureShader(left_lower_corner=0.5)
-pose_visualizer = PoseVisualizer(z_depth=0.01, color=[0.0, 1.0, 0.0, 0.8])
-pose_visualizer_2 = PoseVisualizer(z_depth=0.01, color=[1.0, 1.0, 1.0, 0.8])
-
-# circle_shader = CircleShader(radius=0.02, center=[0.75, 0.75])
-# normal_shader = NormalShader()
-
-############################################################################
-
-
-def get_poses_from_json(transforms):
-    poses = np.asarray(
-        [np.asarray(entry["transform_matrix"]).T for entry in transforms["frames"]]
-    )
-    return poses
-
-
-transforms = json.load(
-    open("/cluster/users/Kai/nerfstudio/data/kitchen_cloud_rim/transforms.json", "r")
-)
-oriented_poses = get_poses_from_json(transforms)
-poses = np.asarray(oriented_poses, dtype=np.float32)
-n_poses = len(poses)
-
-for pose in poses:
-    pose_visualizer.add_pose(pose)
-
-
-transforms = json.load(
-    open("/cluster/users/Kai/nerfstudio/data/kitchen_rim/transforms.json", "r")
-)
-oriented_poses2 = get_poses_from_json(transforms)
-poses2 = np.asarray(oriented_poses2, dtype=np.float32)
-n_poses2 = len(poses)
-
-
-for pose in poses2:
-    pose_visualizer_2.add_pose(pose)
-
-# rel_pose = np.eye(4)  # poses[-10].copy()
+shadow_mapper = ShadowMapper(width=width, height=height)
+heatmap_shader = HeatMapShader(cm="jet")
+depth_texture_shader = DepthTextureShader(llc=0.5)
+pose_visualizer = PoseVisualizer(z_depth=0.03, color=[0.0, 1.0, 0.0, 0.8])
+circle_shader = CircleShader(radius=0.02, center=[0.75, 0.75])
 
 ###########################################################################
 
-# heat_tri_meshes = {key: HeatTriMesh(meshes[key], rel_pose) for key in meshes.keys()}
-
-###########################################################################
-
-# poses = np.einsum("lk,ikj->ilj", np.linalg.inv(rel_pose), poses)
+heat_tri_meshes = {key: HeatTriMesh(meshes[key]) for key in meshes.keys()}
 
 ###########################################################################
 
@@ -146,14 +86,14 @@ def key_input_clb(window, key, scancode, action, mode):
         right = True
     elif key == glfw.KEY_D and action == glfw.RELEASE:
         right = False
-    # if key == glfw.KEY_R and action == glfw.PRESS:
-    #     for key in meshes.keys():
-    #         heat_tri_meshes[key].reset_heatmap()
+    if key == glfw.KEY_R and action == glfw.PRESS:
+        for key in meshes.keys():
+            heat_tri_meshes[key].reset_heatmap()
     if key == glfw.KEY_P and action == glfw.PRESS:
         pose_visualizer._reset_poses()
-    # if key == glfw.KEY_G and action == glfw.PRESS:
-    #     for key in meshes.keys():
-    #         heat_tri_meshes[key].get_heatmap_to_GPU()
+    if key == glfw.KEY_G and action == glfw.PRESS:
+        for key in meshes.keys():
+            heat_tri_meshes[key].get_heatmap_to_GPU()
     if key == glfw.KEY_M and action == glfw.PRESS:
         if mode_ == "world":
             mode_ = "depth"
@@ -221,56 +161,33 @@ if record_flag:
     fourcc = cv2.VideoWriter_fourcc("X", "V", "I", "D")
     out = cv2.VideoWriter(record_path, fourcc, 20.0, record_resolution)
 
-
-glfw.swap_interval(2)
-
-counter = 0
-
 while not glfw.window_should_close(window.window):
+
+    start = glfw.get_time()
 
     glfw.poll_events()
 
     #####################################################################
 
-    # update_global_cam()
-    time = 0.1 * glfw.get_time()
-    rot = cv2.Rodrigues(time * np.asarray([0, 1, 0]))[0]
-    rot4 = np.eye(4)
-    trans4 = np.eye(4)
-    # trans4[:3, 3] = np.asarray([0.0, 0.0, 0.0])
-    rot4[:3, :3] = rot
-    global_view = (
-        np.linalg.inv(trans4.T) @ rot4 @ global_cam.get_view_matrix() @ trans4.T
-    )
-
-    # global_view = global_cam.get_view_matrix()
-
-    # global_view = np.linalg.inv(poses[counter].T)
-    # global_view = np.linalg.inv(poses[300].T)
-    # counter += 1  # global_cam.get_view_matrix()
-    # if counter == n_poses:
-    #    counter = 0
+    update_global_cam()
+    global_view = global_cam.get_view_matrix()
 
     update_pov_cam()
-    # pov_view = pov_cam.get_view_matrix()
-    pov_view = np.linalg.inv(poses[counter].T)
-    counter += 1
-    if counter == n_poses:
-        counter = 0
+    pov_view = pov_cam.get_view_matrix()
 
     #####################################################################
 
-    # glViewport(0, 0, shadow_mapper.width, shadow_mapper.height)
-    # glBindFramebuffer(GL_FRAMEBUFFER, shadow_mapper.frame_buffer)
-    # glClear(GL_DEPTH_BUFFER_BIT)
+    glViewport(0, 0, shadow_mapper.width, shadow_mapper.height)
+    glBindFramebuffer(GL_FRAMEBUFFER, shadow_mapper.frame_buffer)
+    glClear(GL_DEPTH_BUFFER_BIT)
 
-    # shadow_mapper.use()
-    # shadow_mapper._set_uniforms(
-    #     model, (projection.T @ pov_view.T).T
-    # )  # note: in glsl you end up with the transpose of this
+    shadow_mapper.use()
+    shadow_mapper._set_uniforms(
+        model, (projection.T @ pov_view.T).T
+    )  # note: in glsl you end up with the transpose of this
 
-    # for key, mesh in heat_tri_meshes.items():
-    #     mesh.draw_gl(shadow_mapper.shader, ssbo_slot=0)
+    for key, mesh in heat_tri_meshes.items():
+        mesh.draw_gl(shadow_mapper.shader, ssbo_slot=0)
 
     # #####################################################################
 
@@ -278,30 +195,22 @@ while not glfw.window_should_close(window.window):
     glViewport(0, 0, *window.framebuffer_size)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-    # depth_texture_shader.use()
-    # depth_texture_shader._set_uniforms(near_pane, far_plane)
-    # depth_texture_shader.draw(shadow_mapper.depth_map)
-    # circle_shader.draw()
+    depth_texture_shader.use()
+    depth_texture_shader._set_uniforms(near_pane, far_plane)
+    depth_texture_shader.draw(shadow_mapper.depth_map)
 
-    # for shader in [heatmap_shader]:
-    #     shader.use()
-    #     glActiveTexture(GL_TEXTURE0 + 0)
-    #     glBindTexture(GL_TEXTURE_2D, shadow_mapper.depth_map)
-    #     glActiveTexture(GL_TEXTURE0 + 1)
-    #     glBindTexture(GL_TEXTURE_2D, heatmap_shader.texture)
-    #     shader._set_uniforms(model, pov_view, global_view, projection)
-    #     for key, mesh in heat_tri_meshes.items():
-    #         mesh.draw_gl(shader.shader)
+    circle_shader.draw()
+
+    heatmap_shader.use()
+    glBindTexture(GL_TEXTURE_2D, shadow_mapper.depth_map)
+    heatmap_shader._set_uniforms(model, pov_view, global_view, projection)
+    for key, mesh in heat_tri_meshes.items():
+        mesh.draw_gl(heatmap_shader.shader)
 
     pose_visualizer.use()
-    # pose_visualizer.add_pose(np.linalg.inv(pov_view))
+    pose_visualizer.add_pose(np.linalg.inv(pov_view))
     pose_visualizer.set_uniforms(model, global_view, projection)
     pose_visualizer.draw()
-
-    pose_visualizer_2.use()
-    # pose_visualizer.add_pose(np.linalg.inv(pov_view))
-    pose_visualizer_2.set_uniforms(model, global_view, projection)
-    pose_visualizer_2.draw()
 
     if record_flag:
 
@@ -313,6 +222,10 @@ while not glfw.window_should_close(window.window):
         out.write(np.array(image)[:, :, [2, 1, 0]])
 
     glfw.swap_buffers(window.window)
+
+    end = glfw.get_time()
+
+    print(1.0 / (end - start))
 
 if record_flag:
 

@@ -24,7 +24,7 @@ from pyflux.shader import (
     DepthTextureShader,
     NormalShader,
     ShadowMapper,
-    TexturedHeatMapShader,
+    HeatMapShader,
 )
 from pyflux.window import GLContext, GLFWWindow
 
@@ -92,13 +92,13 @@ context = GLContext(FSAA_MODE=11)
 ###########################################################################
 
 shadow_mapper = ShadowMapper(width=width, height=height)
-heatmap_shader = TexturedHeatMapShader(
+heatmap_shader = HeatMapShader(
     cm="jet",
     texfile=export_path / f"{experiment}/material_0.png"
     # cm="jet",
     # texfile=export_path / f"mesh_livingroom/material_0.png",
 )
-depth_texture_shader = DepthTextureShader(left_lower_corner=0.1, cm="flag")
+depth_texture_shader = DepthTextureShader(llc=0.1, cm="flag")
 pose_visualizer = PoseVisualizer(z_depth=0.01, color=[0.0, 1.0, 0.0, 0.8])
 gaze_visualizer = GazeVisualizer(z_depth=1.1, color=[1.0, 1.0, 0.0, 0.8])
 circle_shader = CircleShader(radius=0.02, center=[0.5 * 0.1 + 0.5, 0.5 * 0.1 + 0.5])

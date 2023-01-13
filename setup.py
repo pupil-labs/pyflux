@@ -22,5 +22,5 @@ setup(
         "Topic :: Software Development",
         "Programming Language :: Python :: 3.8",
     ],
-    packages=find_packages(exclude=["meshes", "versions"]),
+    packages=find_packages(exclude=["meshes", "legacy"]),
 )

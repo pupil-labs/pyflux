@@ -1,31 +1,60 @@
+from pathlib import Path
+
+import cv2
 import glfw
 import numpy as np
 import pyrr
 from OpenGL.GL import *
-from pyrr import Vector3, vector
 from PIL import Image
-import cv2
+from pyrr import Vector3, vector
+import torch
 
 from pyflux.camera import Camera
-from pyflux.mesh import HeatTriMesh, load_glb
-from pyflux.pose_visualizer import PoseVisualizer
-from pyflux.shader import DepthTextureShader, HeatMapShader, ShadowMapper, CircleShader
+from pyflux.mesh import HeatTriMesh, load_ply
+from pyflux.pose_visualizer import PoseVisualizer, GazeVisualizer
+from pyflux.poses import PoseConverter, get_gaze_and_pose_df, rotation_matrix
+from pyflux.recordings import get_recording_ids_in_path
+from pyflux.shader import (
+    CircleShader,
+    DepthTextureShader,
+    NormalShader,
+    ShadowMapper,
+    HeatMapShader,
+)
 from pyflux.window import GLContext, GLFWWindow
-
-record_flag = False
-record_resolution = 800, 800
-record_path = "/home/kd/Desktop/flux.mp4"
 
 ###########################################################################
 
-meshes = load_glb("/cluster/users/Kai/nerfstudio/models/cubes.glb", subdivisions=0)
+experiment = "museum_multi"
+base_path = Path("/cluster/users/Kai/nerfstudio")
+ply_path = base_path / "models"
+data_path = base_path / "data"
+export_path = base_path / "exports"
+recording_path = base_path / f"recordings/{experiment}"
+available_recording_ids = get_recording_ids_in_path(recording_path)
+recording_id = available_recording_ids[5]
+print(recording_id)
+
+###########################################################################
+
+record_flag = False
+if record_flag:
+    record_resolution = 1000, 1000
+    record_path = "/home/kd/Desktop/flux.mp4"
+    fourcc = cv2.VideoWriter_fourcc("X", "V", "I", "D")
+    out = cv2.VideoWriter(record_path, fourcc, 30.0, record_resolution)
+
+###########################################################################
+
+meshes = load_ply(ply_path / f"{experiment}.ply", subdivisions=1)
 
 ###########################################################################
 
 global_cam = Camera()
-global_cam.camera_pos = Vector3([0, 20, 35])
-global_cam.camera_front = vector.normalise(-global_cam.camera_pos)
-global_view = global_cam.get_view_matrix()
+global_cam.camera_pos = Vector3([0.0, -0.5, -2.5])
+global_cam.camera_front = -global_cam.camera_pos
+global_cam.camera_up = Vector3([0, 0, 1])
+global_cam.camera_right = Vector3([1, 0, 0])
 
 ###########################################################################
 
@@ -33,14 +62,14 @@ pov_cam = Camera()
 
 ###########################################################################
 
-width, height = 1200, 1200
+width, height = 1600, 1200
 lastX, lastY = width / 2, height / 2
 first_mouse = True
 left, right, forward, backward = False, False, False, False
 
 ###########################################################################
 
-near_pane, far_plane = 0.01, 30.0
+near_plane, far_plane = 0.01, 4.0
 
 ###########################################################################
 
@@ -49,15 +78,39 @@ glfw.swap_interval(1)
 
 ###########################################################################
 
-context = GLContext(FSAA_MODE=5)
+context = GLContext(FSAA_MODE=11)
 
 ###########################################################################
 
 shadow_mapper = ShadowMapper(width=width, height=height)
-heatmap_shader = HeatMapShader(cm="jet")
-depth_texture_shader = DepthTextureShader(left_lower_corner=0.5)
-pose_visualizer = PoseVisualizer(z_depth=0.03, color=[0.0, 1.0, 0.0, 0.8])
-circle_shader = CircleShader(radius=0.02, center=[0.75, 0.75])
+heatmap_shader = HeatMapShader(
+    cm="jet", texfile=export_path / f"{experiment}/material_0.png"
+)
+pose_visualizer = PoseVisualizer(z_depth=0.05, color=[0.0, 1.0, 0.0, 1.0])
+gaze_visualizer = GazeVisualizer(z_depth=1.0, color=[1.0, 1.0, 0.0, 1.0])
+
+llc, urc = 0.5, 0.75
+depth_texture_shader = DepthTextureShader(llc=llc, urc=urc)
+circle_shader = CircleShader(
+    radius=0.025,
+    center=2 * [llc + 0.5 * (urc - llc)],
+    color=[1.0, 0.0, 0.0, 1.0],
+    ratio=height / width,
+    linewidth=2.0,
+)
+
+# normal_shader = NormalShader()
+
+############################################################################
+
+pose_converter = PoseConverter(
+    data_path / f"{experiment}/transforms_cloud.json",
+    data_path / f"{experiment}/transforms.json",
+)
+df_gaze = get_gaze_and_pose_df(recording_path / recording_id, data_path / experiment)
+df_gaze = df_gaze[df_gaze["pose_indicator"] == 1]
+df_gaze = df_gaze.reset_index()
+n_poses = len(df_gaze)
 
 ###########################################################################
 
@@ -67,38 +120,42 @@ heat_tri_meshes = {key: HeatTriMesh(meshes[key]) for key in meshes.keys()}
 
 # the keyboard input callback
 def key_input_clb(window, key, scancode, action, mode):
-    global left, right, forward, backward, mode_
+
+    global left, right, forward, backward
+
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
+
     if key == glfw.KEY_W and action == glfw.PRESS:
         forward = True
     elif key == glfw.KEY_W and action == glfw.RELEASE:
         forward = False
+
     if key == glfw.KEY_S and action == glfw.PRESS:
         backward = True
     elif key == glfw.KEY_S and action == glfw.RELEASE:
         backward = False
+
     if key == glfw.KEY_A and action == glfw.PRESS:
         left = True
     elif key == glfw.KEY_A and action == glfw.RELEASE:
         left = False
+
     if key == glfw.KEY_D and action == glfw.PRESS:
         right = True
     elif key == glfw.KEY_D and action == glfw.RELEASE:
         right = False
+
     if key == glfw.KEY_R and action == glfw.PRESS:
         for key in meshes.keys():
             heat_tri_meshes[key].reset_heatmap()
+
     if key == glfw.KEY_P and action == glfw.PRESS:
         pose_visualizer._reset_poses()
+
     if key == glfw.KEY_G and action == glfw.PRESS:
         for key in meshes.keys():
             heat_tri_meshes[key].get_heatmap_to_GPU()
-    if key == glfw.KEY_M and action == glfw.PRESS:
-        if mode_ == "world":
-            mode_ = "depth"
-        else:
-            mode_ = "world"
 
 
 # do the movement, call this function in the main loop
@@ -153,27 +210,58 @@ glfw.set_input_mode(window.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 ##########################################################################
 
 projection = pyrr.matrix44.create_perspective_projection_matrix(
-    45, width / height, near_pane, far_plane
+    45, width / height, near_plane, far_plane
 )
-model = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
+model = pyrr.matrix44.create_from_translation([0.4, 0.0, 0.0])
 
-if record_flag:
-    fourcc = cv2.VideoWriter_fourcc("X", "V", "I", "D")
-    out = cv2.VideoWriter(record_path, fourcc, 20.0, record_resolution)
+counter = 0
 
 while not glfw.window_should_close(window.window):
-
-    start = glfw.get_time()
 
     glfw.poll_events()
 
     #####################################################################
 
-    update_global_cam()
-    global_view = global_cam.get_view_matrix()
+    # update_global_cam()
+    time = 3.8 + 0.5 * np.cos(0.4 * glfw.get_time())
 
-    update_pov_cam()
-    pov_view = pov_cam.get_view_matrix()
+    rot = cv2.Rodrigues(time * np.asarray([0, 1, 0]))[0]
+    rot4 = np.eye(4)
+    rot4[:3, :3] = rot
+
+    trans4 = np.eye(4)
+    trans4[:3, 3] = np.asarray([0.0, 0.0, 0.0])
+
+    global_view = (
+        np.linalg.inv(trans4.T) @ rot4 @ global_cam.get_view_matrix() @ trans4.T
+    )
+
+    # global_view = global_cam.get_view_matrix()
+    # global_view = np.linalg.inv(poses[counter].T)
+    # global_view = np.linalg.inv(poses[300].T)
+    # counter += 1  # global_cam.get_view_matrix()
+    # if counter == n_poses:
+    #    counter = 0
+
+    # update_pov_cam()
+    # pov_view = pov_cam.get_view_matrix()
+    pose = pose_converter.convert_pose(df_gaze["pose"][counter])
+    gaze_3d = np.asarray(
+        df_gaze.iloc[counter][["gaze_x", "gaze_y", "gaze_z"]].values, dtype=float
+    )
+
+    R = rotation_matrix(
+        torch.FloatTensor([0.0, 0.0, 1.0]), torch.FloatTensor(gaze_3d)
+    ).numpy()
+
+    gaze_pose = pose.copy()
+    gaze_pose[:3, :3] = gaze_pose[:3, :3] @ R
+    gaze_pose = gaze_pose.T @ model
+
+    pov_view = np.linalg.inv(gaze_pose)
+    counter += 4
+    if counter > n_poses - 1:
+        counter = 0
 
     #####################################################################
 
@@ -196,24 +284,37 @@ while not glfw.window_should_close(window.window):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     depth_texture_shader.use()
-    depth_texture_shader._set_uniforms(near_pane, far_plane)
+    depth_texture_shader._set_uniforms(near_plane, far_plane)
     depth_texture_shader.draw(shadow_mapper.depth_map)
 
+    circle_shader.use()
     circle_shader.draw()
 
     heatmap_shader.use()
+    glActiveTexture(GL_TEXTURE0 + 0)
     glBindTexture(GL_TEXTURE_2D, shadow_mapper.depth_map)
+    glActiveTexture(GL_TEXTURE0 + 1)
+    glBindTexture(GL_TEXTURE_2D, heatmap_shader.texture)
     heatmap_shader._set_uniforms(model, pov_view, global_view, projection)
     for key, mesh in heat_tri_meshes.items():
         mesh.draw_gl(heatmap_shader.shader)
 
+    # normal_shader.use()
+    # normal_shader._set_uniforms(model, global_view, projection)
+    # for key, mesh in heat_tri_meshes.items():
+    #     mesh.draw_gl(normal_shader.shader)
+
     pose_visualizer.use()
-    pose_visualizer.add_pose(np.linalg.inv(pov_view))
+    pose_visualizer.add_pose(pose.T)
     pose_visualizer.set_uniforms(model, global_view, projection)
-    pose_visualizer.draw()
+    pose_visualizer.draw(last_n=30)
+
+    gaze_visualizer.use()
+    gaze_visualizer.add_pose(np.linalg.inv(pov_view) @ np.linalg.inv(model))
+    gaze_visualizer.set_uniforms(model, global_view, projection)
+    gaze_visualizer.draw(last_n=1)
 
     if record_flag:
-
         glPixelStorei(GL_PACK_ALIGNMENT, 1)
         data = glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE)
         image = Image.frombytes("RGBA", (width, height), data)
@@ -222,10 +323,6 @@ while not glfw.window_should_close(window.window):
         out.write(np.array(image)[:, :, [2, 1, 0]])
 
     glfw.swap_buffers(window.window)
-
-    end = glfw.get_time()
-
-    print(1.0 / (end - start))
 
 if record_flag:
 

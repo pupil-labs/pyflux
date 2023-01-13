@@ -5,19 +5,17 @@ from pyrr import Vector3, matrix44, vector, vector3
 
 class Camera:
     def __init__(self):
-        self.camera_pos = Vector3([0.0, 1.0, 0.0])
+        self.camera_pos = Vector3([0.0, 0.0, 0.0])
         self.camera_front = Vector3([0.0, 0.0, -1.0])
         self.camera_up = Vector3([0.0, 1.0, 0.0])
         self.camera_right = Vector3([1.0, 0.0, 0.0])
 
         self.mouse_sensitivity = 0.01
+
         self.jaw = -90
         self.pitch = 0
 
         self.update_camera_vectors()
-
-    def print(self):
-        print(self.camera_pos, self.camera_front, self.camera_up, self.camera_right)
 
     def get_view_matrix(self):
         return matrix44.create_look_at(
@@ -35,6 +33,7 @@ class Camera:
             if self.pitch > 89:
                 self.pitch = 89
             if self.pitch < -89:
+
                 self.pitch = -89
 
         self.update_camera_vectors()

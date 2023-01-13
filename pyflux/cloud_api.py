@@ -67,4 +67,13 @@ def download_recording(recording_id, workspace_id, download_path):
         file_source = Path(file_source)
         file_destination = file_source.parents[1] / file_source.name
         shutil.move(file_source,file_destination)
-        
+
+def download_raw_recording(recording_id, workspace_id, download_path):
+    os.makedirs(download_path, exist_ok=True)
+    download_url(f"/workspaces/{workspace_id}/recordings/{recording_id}.zip", download_path + f"/{recording_id}.zip", chunk_size=128)
+    shutil.unpack_archive(download_path + f"/{recording_id}.zip", download_path + f"/{recording_id}")
+    os.remove(download_path + f"/{recording_id}.zip")
+    for file_source in glob.glob(download_path + f"/{recording_id}/*/*"):
+        file_source = Path(file_source)
+        file_destination = file_source.parents[1] / file_source.name
+        shutil.move(file_source,file_destination)

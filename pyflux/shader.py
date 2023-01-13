@@ -9,34 +9,32 @@ from pyflux.colormap import generate_colormap_glsl_code
 
 
 class DepthTextureShader:
-    def __init__(self, left_lower_corner=0.3, cm="gist_ncar", cm_levels=1000):
-
-        self.path = Path("/cluster/users/Kai/git/pyflux")
+    def __init__(self, llc=0.5, urc=1.0, cm="gist_ncar", cm_levels=1000):
 
         self.quad_vertices = np.asarray(
             [
-                left_lower_corner,
-                1.0,
+                llc,
+                urc,
                 0.0,
                 1.0,
-                left_lower_corner,
-                left_lower_corner,
+                llc,
+                llc,
                 0.0,
                 0.0,
-                1.0,
-                left_lower_corner,
-                1.0,
-                0.0,
-                left_lower_corner,
+                urc,
+                llc,
                 1.0,
                 0.0,
-                1.0,
-                1.0,
-                left_lower_corner,
-                1.0,
+                llc,
+                urc,
                 0.0,
                 1.0,
+                urc,
+                llc,
                 1.0,
+                0.0,
+                urc,
+                urc,
                 1.0,
                 1.0,
             ],
@@ -84,18 +82,47 @@ class DepthTextureShader:
 
     def _compile(self, cm="flag", cm_levels=1000):
 
-        with open(
-            self.path / "versions" / "V5" / "depth_texture_shader" / "vs.glsl", "r"
-        ) as ifile:
-            vertex_src = ifile.read()
+        vertex_src = """#version 430 core
+layout (location = 0) in vec2 aPos;
+layout (location = 1) in vec2 aTexCoords;
 
-        with open(
-            self.path / "versions" / "V5" / "depth_texture_shader" / "fs.glsl", "r"
-        ) as ifile:
-            fragment_src = ifile.read()
-            fragment_src = fragment_src.replace(
-                "##colormapcode##", generate_colormap_glsl_code(cm, cm_levels)
-            )
+out vec2 TexCoords;
+
+void main()
+{
+    TexCoords = aTexCoords;
+    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
+}
+"""
+
+        fragment_src = """#version 430 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D depthMap;
+
+uniform float near_plane;
+uniform float far_plane;
+
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane)) / far_plane;
+}
+
+##colormapcode##
+
+void main()
+{
+    float depthValue = texture(depthMap, TexCoords).r;
+    FragColor = get_color(LinearizeDepth(depthValue)/2.0);
+    FragColor.w = 1.0;
+}
+"""
+        fragment_src = fragment_src.replace(
+            "##colormapcode##", generate_colormap_glsl_code(cm, cm_levels)
+        )
 
         self.shader = compileProgram(
             compileShader(vertex_src, GL_VERTEX_SHADER),
@@ -203,20 +230,69 @@ class NormalShader:
     def __init__(self):
 
         self.shader = None
-        self.path = Path("/cluster/users/Kai/git/pyflux/versions/V4/normal_shader")
+        self.path = Path("/cluster/users/Kai/git/pyflux/pyflux/viz/normal_shader")
         self._compile()
         self._get_uniforms()
 
     def _compile(self, cm="jet", cm_levels=1000):
 
-        with open(self.path / "vs.glsl", "r") as ifile:
-            vertex_src = ifile.read()
+        vertex_src = """#version 430 core
+layout (location = 0) in vec3 aPos;
+layout (location = 2) in vec3 aNormal;
 
-        with open(self.path / "fs.glsl", "r") as ifile:
-            fragment_src = ifile.read()
+out VS_OUT {
+    vec3 normal;
+} vs_out;
 
-        with open(self.path / "gs.glsl", "r") as ifile:
-            geometry_src = str(ifile.read())
+uniform mat4 view;
+uniform mat4 model;
+
+void main()
+{
+    gl_Position = view * model * vec4(aPos, 1.0); 
+    mat3 normalMatrix = mat3(transpose(inverse(view * model)));
+    vs_out.normal = normalize(vec3(vec4(normalMatrix * aNormal, 0.0)));
+}
+"""
+
+        fragment_src = """#version 430 core
+out vec4 FragColor;
+
+void main()
+{
+    FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+}
+"""
+
+        geometry_src = """#version 430 core
+layout (triangles) in;
+layout (line_strip, max_vertices = 6) out;
+
+in VS_OUT {
+    vec3 normal;
+} gs_in[];
+
+const float MAGNITUDE = 0.02;
+  
+uniform mat4 projection;
+
+void GenerateLine(int index)
+{
+    gl_Position = projection * gl_in[index].gl_Position;
+    EmitVertex();
+    gl_Position = projection * (gl_in[index].gl_Position + 
+                                vec4(gs_in[index].normal, 0.0) * MAGNITUDE);
+    EmitVertex();
+    EndPrimitive();
+}
+
+void main()
+{
+    GenerateLine(0); // first vertex normal
+    GenerateLine(1); // second vertex normal
+    GenerateLine(2); // third vertex normal
+}
+"""
 
         self.shader = compileProgram(
             compileShader(vertex_src, GL_VERTEX_SHADER),
@@ -241,17 +317,28 @@ class NormalShader:
 
 
 class CircleShader:
-    def __init__(self, color=[1.0, 1.0, 1.0, 1.0], radius=1.0, center=[0, 0]):
-        self.radius = radius
-        self.center = np.asarray(center, dtype=np.float32)
-        self.vertices = self.center + radius * np.asarray(
+    def __init__(
+        self,
+        color=[1.0, 0.0, 0.0, 0.5],
+        linewidth=1.0,
+        radius=1.0,
+        center=[0, 0],
+        ratio=1,
+        resolution=25,
+    ):
+
+        self.color = color
+        self.linewidth = linewidth
+
+        self.vertices = np.asarray(center, dtype=np.float32) + radius * np.asarray(
             [
-                [np.cos(phi), np.sin(phi)]
-                for phi in list(np.linspace(0, 2 * np.pi, 50)) + [0]
+                [ratio * np.cos(phi), np.sin(phi)]
+                for phi in list(np.linspace(0, 2 * np.pi, resolution)) + [0]
             ],
             dtype=np.float32,
         )
         self.vertices = np.ravel(self.vertices)
+
         self._compile()
         self._setup_vertex_array()
 
@@ -290,11 +377,13 @@ void main()
     gl_Position = vec4(aPos, -1.0, 1.0);
 }
 """
-        fragment_src = """#version 430 core
+        fragment_src = f"""#version 430 core
 out vec4 FragColor;
-void main(){
-    FragColor = vec4(1.0,0.0,0.0,1.0);
-}
+
+void main()
+{{
+    FragColor = vec4({self.color[0]},{self.color[1]},{self.color[2]},{self.color[3]});
+}}
 """
         self.shader = compileProgram(
             compileShader(vertex_src, GL_VERTEX_SHADER),
@@ -306,7 +395,7 @@ void main(){
 
     def draw(self):
         current_line_width = glGetFloat(GL_LINE_WIDTH)
-        glLineWidth(2.0)
+        glLineWidth(self.linewidth)
 
         self.use()
         glBindVertexArray(self.VAO)
@@ -316,60 +405,6 @@ void main(){
 
 
 class HeatMapShader:
-    def __init__(self, cm="gist_ncar"):
-        self.path = Path("/cluster/users/Kai/git/pyflux")
-        self._compile(cm=cm)
-        self._get_uniforms()
-
-    def _compile(self, cm, cm_levels=1000):
-
-        with open(self.path / "versions" / "V4" / "vs.glsl", "r") as ifile:
-            vertex_src = ifile.read()
-
-        with open(self.path / "versions" / "V4" / "fs.glsl", "r") as ifile:
-            fragment_src = ifile.read()
-
-        with open(self.path / "versions" / "V4" / "gs.glsl", "r") as ifile:
-            geometry_src = str(ifile.read())
-            geometry_src = geometry_src.replace(
-                "##colormapcode##", generate_colormap_glsl_code(cm, cm_levels)
-            )
-
-        self.shader = compileProgram(
-            compileShader(vertex_src, GL_VERTEX_SHADER),
-            compileShader(geometry_src, GL_GEOMETRY_SHADER),
-            compileShader(fragment_src, GL_FRAGMENT_SHADER),
-        )
-
-    def _get_uniforms(self):
-        self.use()
-
-        self.model_loc = glGetUniformLocation(self.shader, "model")
-        self.pov_view_loc = glGetUniformLocation(self.shader, "pov_view")
-        self.global_view_loc = glGetUniformLocation(self.shader, "global_view")
-        self.projection_loc = glGetUniformLocation(self.shader, "projection")
-
-        self.viewPos_loc = glGetUniformLocation(self.shader, "viewPos")
-        self.lightColor_loc = glGetUniformLocation(self.shader, "lightColor")
-        self.lightPos_loc = glGetUniformLocation(self.shader, "lightPos")
-
-    def _set_uniforms(self, model, pov_view, global_view, projection):
-        self.use()
-
-        glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, model)
-        glUniformMatrix4fv(self.pov_view_loc, 1, GL_FALSE, pov_view)
-        glUniformMatrix4fv(self.global_view_loc, 1, GL_FALSE, global_view)
-        glUniformMatrix4fv(self.projection_loc, 1, GL_FALSE, projection)
-
-        glUniform3f(self.viewPos_loc, *(np.linalg.inv(global_view)[3, :3]))
-        glUniform3f(self.lightPos_loc, *(np.linalg.inv(global_view)[3, :3]))
-        glUniform3f(self.lightColor_loc, 1.0, 1.0, 1.0)
-
-    def use(self):
-        glUseProgram(self.shader)
-
-
-class TexturedHeatMapShader:
     def __init__(
         self,
         cm="gist_ncar",
@@ -412,13 +447,13 @@ class TexturedHeatMapShader:
 
     def _compile(self, cm, cm_levels=1000):
 
-        with open(self.path / "versions" / "V5" / "vs.glsl", "r") as ifile:
+        with open(self.path / "pyflux" / "viz" / "vs.glsl", "r") as ifile:
             vertex_src = ifile.read()
 
-        with open(self.path / "versions" / "V5" / "fs.glsl", "r") as ifile:
+        with open(self.path / "pyflux" / "viz" / "fs.glsl", "r") as ifile:
             fragment_src = ifile.read()
 
-        with open(self.path / "versions" / "V5" / "gs.glsl", "r") as ifile:
+        with open(self.path / "pyflux" / "viz" / "gs.glsl", "r") as ifile:
             geometry_src = str(ifile.read())
             geometry_src = geometry_src.replace(
                 "##colormapcode##", generate_colormap_glsl_code(cm, cm_levels)
