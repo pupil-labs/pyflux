@@ -10,7 +10,24 @@ from poses import convert_rim_pose_to_nerfstudio_convention
 from recordings import get_relative_timestamps
 import pickle
 
+from paths import base_path
+
 ###########################################################
+
+transforms = {
+    "fl_x": 768.5348604948086,
+    "fl_y": 768.2297161774204,
+    "cx": 552.5247441952499,
+    "cy": 539.0126768409235,
+    "w": 1088,
+    "h": 1080,
+    "camera_model": "OPENCV",
+    "k1": -0.29360766080176726,
+    "k2": 0.07162415902612174,
+    "p1": 0.0013999923091842345,
+    "p2": 0.00039728879102343754,
+    "frames": [],
+}
 
 
 def get_frames_with_poses(camera_poses, relative_timestamps):
@@ -25,7 +42,7 @@ def get_frames_with_poses(camera_poses, relative_timestamps):
 def get_localized_frames_dict(camera_poses_dict, download_path):
     localized_frames_dict = {}
     for RECORDING_ID in camera_poses_dict.keys():
-        recording_path = Path(download_path + f"/{RECORDING_ID}")
+        recording_path = Path(download_path / f"{RECORDING_ID}")
         relative_timestamps = get_relative_timestamps(recording_path)
         frames = get_frames_with_poses(
             camera_poses_dict[RECORDING_ID], relative_timestamps
@@ -38,12 +55,9 @@ def write_raw_frames(localized_frames, image_path, n_per_recording=100):
 
     os.makedirs(image_path, exist_ok=True)
 
-    transforms = json.load(open("/home/kd/Desktop/transforms.json", "r"))
-    transforms["frames"] = []
-
     counter = 0
     for RECORDING_ID in localized_frames.keys():
-        path = Path(download_path + f"/{RECORDING_ID}")
+        path = Path(download_path / f"{RECORDING_ID}")
         videofile = glob.glob(str(path / "*.mp4"))[0]
         cap = cv2.VideoCapture(videofile)
         np.random.shuffle(localized_frames[RECORDING_ID])
@@ -75,13 +89,17 @@ if __name__ == "__main__":
     # ENRICHMENT_ID = "40d8d8c8-008b-4d25-a7e1-48a7bc479293"
 
     # Museum multi
-    WORKSPACE_ID = "78cddeee-772e-4e54-9963-1cc2f62825f9"
-    PROJECT_ID = "3bf7d748-b22f-49e0-8e7d-83dcb177b332"
-    ENRICHMENT_ID = "68d640fb-63de-47c0-87a9-a3ce0ba36223"
+    # WORKSPACE_ID = "78cddeee-772e-4e54-9963-1cc2f62825f9"
+    # PROJECT_ID = "3bf7d748-b22f-49e0-8e7d-83dcb177b332"
+    # ENRICHMENT_ID = "68d640fb-63de-47c0-87a9-a3ce0ba36223"
 
-    experiment = "supermarket"
+    # Hinterhof
+    WORKSPACE_ID = "32839a71-ad9a-42f3-9391-5726f28746bd"
+    PROJECT_ID = "c26ce862-5edd-40ad-a7a9-5e871a72e903"
+    ENRICHMENT_ID = "1484f523-3ffa-4531-8701-81b39b92493c"
+    EXPERIMENT_NAME = "hinterhof"
 
-    download_path = Path("/cluster/users/Kai/nerfstudio/recordings/{experiment}")
+    download_path = base_path / "recordings" / f"{EXPERIMENT_NAME}"
 
     camera_poses_dict = get_camera_poses_dict(ENRICHMENT_ID, PROJECT_ID, WORKSPACE_ID)
 
@@ -96,6 +114,6 @@ if __name__ == "__main__":
 
     localized_frames_dict = get_localized_frames_dict(camera_poses_dict, download_path)
 
-    raw_frames_path = Path("/cluster/users/Kai/nerfstudio/data/museum_multi/raw_frames")
+    raw_frames_path = base_path / "data" / f"{EXPERIMENT_NAME}/raw_frames"
 
-    write_raw_frames(localized_frames_dict, raw_frames_path, 100)
+    write_raw_frames(localized_frames_dict, raw_frames_path, n_per_recording=100)

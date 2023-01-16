@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+import time
 
 import torch
 
@@ -11,6 +12,7 @@ from nerfstudio.configs import base_config as cfg
 from nerfstudio.configs.method_configs import method_configs
 from process_data import ProcessImages
 from train import main as train_nerf
+from paths import base_path
 
 
 def compute_mesh(
@@ -21,9 +23,7 @@ def compute_mesh(
 
     if timestamp is None:
         timestamp = datetime.now().strftime("%d_%m_%Y_%H%M%S")
-    print(timestamp)
 
-    base_path = Path("/cluster/users/Kai/nerfstudio")
     data_path = base_path / "data" / f"{experiment_name}"
     raw_frames_path = data_path / "raw_frames"
     export_path = base_path / "exports" / f"{experiment_name}"
@@ -59,7 +59,8 @@ def compute_mesh(
         train_config.data = data_path
         train_config.pipeline.model.predict_normals = True
         train_config.timestamp = timestamp
-        train_config.quit_on_train_completion = True
+        train_config.trainer.max_num_iterations = 100
+        train_config.viewer.quit_on_train_completion = True
 
         train_nerf(train_config)
 
@@ -80,20 +81,22 @@ def compute_mesh(
             "num_points": 1000000,
             "remove_outliers": True,
             "use_bounding_box": True,
-            "bounding_box_min": (-1.0, -1.0, -1.0),
-            "bounding_box_max": (1.0, 1.0, 1.0),
+            "bounding_box_min": (-1.3, -1.3, -1.3),
+            "bounding_box_max": (1.3, 1.3, 1.3),
         }
 
         ExportPoissonMesh(**export_config).main()
+
+    return timestamp
 
 
 if __name__ == "__main__":
 
     kwargs = {
-        "experiment_name": "kitchen_talk",
-        "timestamp": None,
-        "process": True,
-        "train": True,
+        "experiment_name": "hinterhof",
+        "timestamp": "16_01_2023_145149",
+        "process": False,
+        "train": False,
         "export": True,
     }
 

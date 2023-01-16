@@ -9,6 +9,7 @@ from PIL import Image
 from pyrr import Vector3, vector
 import torch
 
+from pyflux.paths import base_path
 from pyflux.camera import Camera
 from pyflux.mesh import HeatTriMesh, load_ply
 from pyflux.pose_visualizer import PoseVisualizer, GazeVisualizer
@@ -25,14 +26,13 @@ from pyflux.window import GLContext, GLFWWindow
 
 ###########################################################################
 
-experiment = "museum_multi"
-base_path = Path("/cluster/users/Kai/nerfstudio")
+experiment = "hinterhof"
 ply_path = base_path / "models"
 data_path = base_path / "data"
 export_path = base_path / "exports"
 recording_path = base_path / f"recordings/{experiment}"
 available_recording_ids = get_recording_ids_in_path(recording_path)
-recording_id = available_recording_ids[5]
+recording_id = available_recording_ids[2]
 print(recording_id)
 
 ###########################################################################
@@ -84,9 +84,9 @@ context = GLContext(FSAA_MODE=11)
 
 shadow_mapper = ShadowMapper(width=width, height=height)
 heatmap_shader = HeatMapShader(
-    cm="jet", texfile=export_path / f"{experiment}/material_0.png"
+    texfile=export_path / f"{experiment}/material_0.png", cm="jet"
 )
-pose_visualizer = PoseVisualizer(z_depth=0.05, color=[0.0, 1.0, 0.0, 1.0])
+pose_visualizer = PoseVisualizer(z_depth=0.01, color=[0.0, 1.0, 0.0, 1.0])
 gaze_visualizer = GazeVisualizer(z_depth=1.0, color=[1.0, 1.0, 0.0, 1.0])
 
 llc, urc = 0.5, 0.75
@@ -223,7 +223,7 @@ while not glfw.window_should_close(window.window):
     #####################################################################
 
     # update_global_cam()
-    time = 3.8 + 0.5 * np.cos(0.4 * glfw.get_time())
+    time = 4.8 + 0.5 * np.cos(0.4 * glfw.get_time())
 
     rot = cv2.Rodrigues(time * np.asarray([0, 1, 0]))[0]
     rot4 = np.eye(4)

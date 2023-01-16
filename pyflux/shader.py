@@ -230,7 +230,6 @@ class NormalShader:
     def __init__(self):
 
         self.shader = None
-        self.path = Path("/cluster/users/Kai/git/pyflux/pyflux/viz/normal_shader")
         self._compile()
         self._get_uniforms()
 
@@ -407,10 +406,10 @@ void main()
 class HeatMapShader:
     def __init__(
         self,
+        texfile,
         cm="gist_ncar",
-        texfile="/cluster/users/Kai/nerfstudio/exports/museum/material_0.png",
     ):
-        self.path = Path("/cluster/users/Kai/git/pyflux")
+        self.path = Path(__file__).parent
         self._compile(cm=cm)
         self.texfile = texfile
         self._setup_texture(self.texfile)
@@ -447,13 +446,13 @@ class HeatMapShader:
 
     def _compile(self, cm, cm_levels=1000):
 
-        with open(self.path / "pyflux" / "viz" / "vs.glsl", "r") as ifile:
+        with open(self.path / "viz" / "vs.glsl", "r") as ifile:
             vertex_src = ifile.read()
 
-        with open(self.path / "pyflux" / "viz" / "fs.glsl", "r") as ifile:
+        with open(self.path /  "viz" / "fs.glsl", "r") as ifile:
             fragment_src = ifile.read()
 
-        with open(self.path / "pyflux" / "viz" / "gs.glsl", "r") as ifile:
+        with open(self.path /  "viz" / "gs.glsl", "r") as ifile:
             geometry_src = str(ifile.read())
             geometry_src = geometry_src.replace(
                 "##colormapcode##", generate_colormap_glsl_code(cm, cm_levels)

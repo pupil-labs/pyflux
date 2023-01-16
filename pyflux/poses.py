@@ -278,10 +278,14 @@ def get_gaze_and_pose_df(recording_path, transforms_path):
     while i < N:
         if t[i] < ts[j]:
             i += 1
+            if i>=N:
+                break
         if ts[j] <= t[i] and t[i] < te[j]:
             df.at[i, "pose_indicator"] = 1
             df.at[i, "pose"] = np.asarray(df_poses["pose"][j])
             i += 1
+            if i>=N:
+                break
         if t[i] >= te[j] and j + 1 < M:
             j += 1
         if t[i] >= te[j] and j + 1 == M:

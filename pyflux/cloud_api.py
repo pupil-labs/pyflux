@@ -27,8 +27,8 @@ def api_get(path):
     
 def get_enrichment_dict(enrichment_id, project_id, workspace_id):
     log.info(f"fetching enrichment:{enrichment_id}")
-    enrichment = api_get(f"/workspaces/{workspace_id}/projects/{project_id}/enrichments/{enrichment_id}")       
-    return enrichment
+    enrichment_dict = api_get(f"/workspaces/{workspace_id}/projects/{project_id}/enrichments/{enrichment_id}")       
+    return enrichment_dict
 
 def get_project_recordings(project_id, workspace_id):
     log.info(f"fetching recordings in project:{project_id}")
@@ -60,20 +60,20 @@ def download_url(path, save_path, chunk_size=128):
 
 def download_recording(recording_id, workspace_id, download_path):
     os.makedirs(download_path, exist_ok=True)
-    download_url(f"/workspaces/{workspace_id}/recordings:raw-data-export?ids={recording_id}", download_path + f"/{recording_id}.zip", chunk_size=128)
-    shutil.unpack_archive(download_path + f"/{recording_id}.zip", download_path + f"/{recording_id}")
-    os.remove(download_path + f"/{recording_id}.zip")
-    for file_source in glob.glob(download_path + f"/{recording_id}/*/*"):
+    download_url(f"/workspaces/{workspace_id}/recordings:raw-data-export?ids={recording_id}", download_path / f"{recording_id}.zip", chunk_size=128)
+    shutil.unpack_archive(download_path / f"{recording_id}.zip", download_path / f"{recording_id}")
+    os.remove(download_path / f"{recording_id}.zip")
+    for file_source in glob.glob(str(download_path / f"{recording_id}/*/*")):
         file_source = Path(file_source)
         file_destination = file_source.parents[1] / file_source.name
         shutil.move(file_source,file_destination)
 
 def download_raw_recording(recording_id, workspace_id, download_path):
     os.makedirs(download_path, exist_ok=True)
-    download_url(f"/workspaces/{workspace_id}/recordings/{recording_id}.zip", download_path + f"/{recording_id}.zip", chunk_size=128)
-    shutil.unpack_archive(download_path + f"/{recording_id}.zip", download_path + f"/{recording_id}")
-    os.remove(download_path + f"/{recording_id}.zip")
-    for file_source in glob.glob(download_path + f"/{recording_id}/*/*"):
+    download_url(f"/workspaces/{workspace_id}/recordings/{recording_id}.zip", download_path / f"{recording_id}.zip", chunk_size=128)
+    shutil.unpack_archive(download_path / f"{recording_id}.zip", download_path / f"{recording_id}")
+    os.remove(download_path / f"{recording_id}.zip")
+    for file_source in glob.glob(str(download_path / f"{recording_id}/*/*")):
         file_source = Path(file_source)
         file_destination = file_source.parents[1] / file_source.name
         shutil.move(file_source,file_destination)
