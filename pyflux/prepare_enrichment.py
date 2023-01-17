@@ -75,7 +75,6 @@ def write_raw_frames(localized_frames, image_path, n_per_recording=100):
 
     json.dump(transforms, open(image_path.parent / "transforms_cloud.json", "w"))
 
-
 if __name__ == "__main__":
 
     # Museum downstairs

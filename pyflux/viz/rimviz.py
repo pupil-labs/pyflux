@@ -26,32 +26,32 @@ from pyflux.window import GLContext, GLFWWindow
 
 ###########################################################################
 
-experiment = "hinterhof"
+experiment_name = "hinterhof"
 ply_path = base_path / "models"
 data_path = base_path / "data"
 export_path = base_path / "exports"
-recording_path = base_path / f"recordings/{experiment}"
+recording_path = base_path / f"recordings/{experiment_name}"
 available_recording_ids = get_recording_ids_in_path(recording_path)
-recording_id = available_recording_ids[2]
+recording_id = available_recording_ids[0]
 print(recording_id)
 
 ###########################################################################
 
 record_flag = False
 if record_flag:
-    record_resolution = 1000, 1000
-    record_path = "/home/kd/Desktop/flux.mp4"
+    record_resolution = 1200, 800
+    record_path = "/home/kd/Desktop/berlin_office_flux.mp4"
     fourcc = cv2.VideoWriter_fourcc("X", "V", "I", "D")
     out = cv2.VideoWriter(record_path, fourcc, 30.0, record_resolution)
 
 ###########################################################################
 
-meshes = load_ply(ply_path / f"{experiment}.ply", subdivisions=1)
+meshes = load_ply(ply_path / f"{experiment_name}.ply", subdivisions=1)
 
 ###########################################################################
 
 global_cam = Camera()
-global_cam.camera_pos = Vector3([0.0, -0.5, -2.5])
+global_cam.camera_pos = Vector3([0.0, -0.5, -2.8])
 global_cam.camera_front = -global_cam.camera_pos
 global_cam.camera_up = Vector3([0, 0, 1])
 global_cam.camera_right = Vector3([1, 0, 0])
@@ -84,7 +84,7 @@ context = GLContext(FSAA_MODE=11)
 
 shadow_mapper = ShadowMapper(width=width, height=height)
 heatmap_shader = HeatMapShader(
-    texfile=export_path / f"{experiment}/material_0.png", cm="jet"
+    texfile=export_path / f"{experiment_name}/material_0.png", cm="jet"
 )
 pose_visualizer = PoseVisualizer(z_depth=0.01, color=[0.0, 1.0, 0.0, 1.0])
 gaze_visualizer = GazeVisualizer(z_depth=1.0, color=[1.0, 1.0, 0.0, 1.0])
@@ -104,10 +104,10 @@ circle_shader = CircleShader(
 ############################################################################
 
 pose_converter = PoseConverter(
-    data_path / f"{experiment}/transforms_cloud.json",
-    data_path / f"{experiment}/transforms.json",
+    data_path / f"{experiment_name}/transforms_cloud.json",
+    data_path / f"{experiment_name}/transforms.json",
 )
-df_gaze = get_gaze_and_pose_df(recording_path / recording_id, data_path / experiment)
+df_gaze = get_gaze_and_pose_df(recording_path / recording_id, data_path / experiment_name)
 df_gaze = df_gaze[df_gaze["pose_indicator"] == 1]
 df_gaze = df_gaze.reset_index()
 n_poses = len(df_gaze)
@@ -223,7 +223,7 @@ while not glfw.window_should_close(window.window):
     #####################################################################
 
     # update_global_cam()
-    time = 4.8 + 0.5 * np.cos(0.4 * glfw.get_time())
+    time = 5.0 + 0.5 * np.cos(0.4 * glfw.get_time())
 
     rot = cv2.Rodrigues(time * np.asarray([0, 1, 0]))[0]
     rot4 = np.eye(4)
