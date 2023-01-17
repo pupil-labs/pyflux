@@ -107,7 +107,9 @@ pose_converter = PoseConverter(
     data_path / f"{experiment_name}/transforms_cloud.json",
     data_path / f"{experiment_name}/transforms.json",
 )
-df_gaze = get_gaze_and_pose_df(recording_path / recording_id, data_path / experiment_name)
+df_gaze = get_gaze_and_pose_df(
+    recording_path / recording_id, data_path / experiment_name
+)
 df_gaze = df_gaze[df_gaze["pose_indicator"] == 1]
 df_gaze = df_gaze.reset_index()
 n_poses = len(df_gaze)
