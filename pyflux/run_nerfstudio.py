@@ -99,10 +99,10 @@ if __name__ == "__main__":
 
     kwargs = {
         "experiment_name": "hinterhof2",
-        "timestamp": None,
-        "process": False,
+        "timestamp": 'None',
+        "process": True,
         "train": True,
-        "export": False,
+        "export": True,
     }
 
     compute_mesh(**kwargs)

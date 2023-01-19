@@ -26,13 +26,13 @@ from pyflux.window import GLContext, GLFWWindow
 
 ###########################################################################
 
-experiment_name = "hinterhof"
+experiment_name = "hinterhof2"
 ply_path = base_path / "models"
 data_path = base_path / "data"
 export_path = base_path / "exports"
 recording_path = base_path / f"recordings/{experiment_name}"
 available_recording_ids = get_recording_ids_in_path(recording_path)
-recording_id = available_recording_ids[0]
+recording_id = available_recording_ids[1]
 print(recording_id)
 
 ###########################################################################
@@ -86,7 +86,7 @@ shadow_mapper = ShadowMapper(width=width, height=height)
 heatmap_shader = HeatMapShader(
     texfile=export_path / f"{experiment_name}/material_0.png", cm="jet"
 )
-pose_visualizer = PoseVisualizer(z_depth=0.01, color=[0.0, 1.0, 0.0, 1.0])
+pose_visualizer = PoseVisualizer(z_depth=0.005, color=[0.0, 1.0, 0.0, 1.0])
 gaze_visualizer = GazeVisualizer(z_depth=1.0, color=[1.0, 1.0, 0.0, 1.0])
 
 llc, urc = 0.5, 0.75
@@ -309,7 +309,7 @@ while not glfw.window_should_close(window.window):
     pose_visualizer.use()
     pose_visualizer.add_pose(pose.T)
     pose_visualizer.set_uniforms(model, global_view, projection)
-    pose_visualizer.draw(last_n=30)
+    pose_visualizer.draw(last_n=10000)
 
     gaze_visualizer.use()
     gaze_visualizer.add_pose(np.linalg.inv(pov_view) @ np.linalg.inv(model))
