@@ -27,7 +27,7 @@ def compute_mesh(
     ##################################################################
 
     if timestamp is None:
-        timestamp = datetime.now().strftime("%d_%m_%Y_%H%M%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     data_path = base_path / "data" / f"{experiment_name}"
     raw_frames_path = data_path / "raw_frames"
@@ -86,8 +86,8 @@ def compute_mesh(
             "num_points": 1000000,
             "remove_outliers": True,
             "use_bounding_box": True,
-            "bounding_box_min": (-1.3, -1.3, -1.3),
-            "bounding_box_max": (1.3, 1.3, 1.3),
+            "bounding_box_min": (-5, -5, -5),
+            "bounding_box_max": (5, 5, 5),
         }
 
         ExportPoissonMesh(**export_config).main()
@@ -98,8 +98,8 @@ def compute_mesh(
 if __name__ == "__main__":
 
     kwargs = {
-        "experiment_name": "hinterhof2",
-        "timestamp": 'None',
+        "experiment_name": "car",
+        "timestamp": None,
         "process": True,
         "train": True,
         "export": True,
