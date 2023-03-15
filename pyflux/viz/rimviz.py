@@ -26,7 +26,7 @@ from pyflux.window import GLContext, GLFWWindow
 
 ###########################################################################
 
-experiment_name = "hinterhof2"
+experiment_name = "bottle3"
 ply_path = base_path / "models"
 data_path = base_path / "data"
 export_path = base_path / "exports"
@@ -37,16 +37,16 @@ print(recording_id)
 
 ###########################################################################
 
-record_flag = False
+record_flag = True
 if record_flag:
     record_resolution = 1200, 800
-    record_path = "/home/kd/Desktop/berlin_office_flux.mp4"
+    record_path = "/home/kd/Desktop/bottle3_flux.mp4"
     fourcc = cv2.VideoWriter_fourcc("X", "V", "I", "D")
     out = cv2.VideoWriter(record_path, fourcc, 30.0, record_resolution)
 
 ###########################################################################
 
-meshes = load_ply(ply_path / f"{experiment_name}.ply", subdivisions=1)
+meshes = load_ply(ply_path / f"{experiment_name}.ply", subdivisions=0)
 
 ###########################################################################
 
@@ -69,7 +69,7 @@ left, right, forward, backward = False, False, False, False
 
 ###########################################################################
 
-near_plane, far_plane = 0.01, 4.0
+near_plane, far_plane = 0.01, 8.0
 
 ###########################################################################
 
@@ -225,7 +225,7 @@ while not glfw.window_should_close(window.window):
     #####################################################################
 
     # update_global_cam()
-    time = 5.0 + 0.5 * np.cos(0.4 * glfw.get_time())
+    time = 5.0 + 0.7 * np.cos(0.4 * glfw.get_time())
 
     rot = cv2.Rodrigues(time * np.asarray([0, 1, 0]))[0]
     rot4 = np.eye(4)

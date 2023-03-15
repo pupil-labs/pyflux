@@ -77,6 +77,19 @@ def compute_mesh(
 
     if export:
 
+        # export_config = {
+        #     "load_config": config_path,
+        #     "output_dir": export_path,
+        #     "target_num_faces": 50000,
+        #     "num_pixels_per_side": 2048,
+        #     "normal_output_name": "normals",
+        #     "num_points": 1000000,
+        #     "remove_outliers": True,
+        #     "use_bounding_box": True,
+        #     "bounding_box_min": (-2.3, -2.3, -2.3),
+        #     "bounding_box_max": (2.3, 2.3, 2.3),
+        # }
+
         export_config = {
             "load_config": config_path,
             "output_dir": export_path,
@@ -86,8 +99,8 @@ def compute_mesh(
             "num_points": 1000000,
             "remove_outliers": True,
             "use_bounding_box": True,
-            "bounding_box_min": (-1.3, -1.3, -1.3),
-            "bounding_box_max": (1.3, 1.3, 1.3),
+            "bounding_box_min": (-1, -1, -1),
+            "bounding_box_max": (5, 5, 5),
         }
 
         ExportPoissonMesh(**export_config).main()
@@ -98,10 +111,10 @@ def compute_mesh(
 if __name__ == "__main__":
 
     kwargs = {
-        "experiment_name": "hinterhof2",
-        "timestamp": 'None',
-        "process": True,
-        "train": True,
+        "experiment_name": "bottle3",
+        "timestamp": "2023-02-22_141838",
+        "process": False,
+        "train": False,
         "export": True,
     }
 

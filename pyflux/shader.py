@@ -478,7 +478,7 @@ class HeatMapShader:
 
         self.strength_loc = glGetUniformLocation(self.shader, "strength")
 
-    def _set_uniforms(self, model, pov_view, global_view, projection, strength=0.001):
+    def _set_uniforms(self, model, pov_view, global_view, projection, strength=0.005):
         self.use()
 
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, model)
