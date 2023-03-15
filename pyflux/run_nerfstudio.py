@@ -27,7 +27,7 @@ def compute_mesh(
     ##################################################################
 
     if timestamp is None:
-        timestamp = datetime.now().strftime("%d_%m_%Y_%H%M%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     data_path = base_path / "data" / f"{experiment_name}"
     raw_frames_path = data_path / "raw_frames"
@@ -99,7 +99,11 @@ def compute_mesh(
             "num_points": 1000000,
             "remove_outliers": True,
             "use_bounding_box": True,
+<<<<<<< HEAD
             "bounding_box_min": (-1, -1, -1),
+=======
+            "bounding_box_min": (-5, -5, -5),
+>>>>>>> f9633caa7ead60f1555f026d1ae73bd04088d6d2
             "bounding_box_max": (5, 5, 5),
         }
 
@@ -111,10 +115,17 @@ def compute_mesh(
 if __name__ == "__main__":
 
     kwargs = {
+<<<<<<< HEAD
         "experiment_name": "bottle3",
         "timestamp": "2023-02-22_141838",
         "process": False,
         "train": False,
+=======
+        "experiment_name": "car",
+        "timestamp": None,
+        "process": True,
+        "train": True,
+>>>>>>> f9633caa7ead60f1555f026d1ae73bd04088d6d2
         "export": True,
     }
 
