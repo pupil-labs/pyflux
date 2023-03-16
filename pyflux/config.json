@@ -1,0 +1,11 @@
+{
+    "NERFSTUDIO_PATH": "/home/mgg/nerf_mg/nerfstudio",
+    "BASE_PATH": "/users/mgg/nerfs",
+    "API_KEY": "XgZUjCbXbZwjg2v4JzCs6hbkygjsYWHTBSoofAF8rwov",
+    "WORKSPACE_ID": "f66d330c-1fa1-425d-938a-36be565215ab",
+    "PROJECT_ID": "29119766-3635-4f0f-af57-db0896d5bab3",
+    "ENRICHMENT_ID": "95882476-0a10-4d8e-9941-fe0f77e455db",
+    "EXPERIMENT_NAME": "bottle3",
+    "bbox": 2.3,
+    "far_plane": 7.0
+}

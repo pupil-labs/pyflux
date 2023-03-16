@@ -1,0 +1,10 @@
+conda create --name kd_nerfrim python=3.8
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install nerfstudio
+pip install glfw
+pip install pyrr
+pip install trimesh
+pip install PyOpenGL 
+pip install PyOpenGL_accelerate
+
