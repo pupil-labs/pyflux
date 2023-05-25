@@ -328,8 +328,9 @@ class CircleShader:
 
         self.color = color
         self.linewidth = linewidth
+        self.center = np.asarray(center, dtype=np.float32)
 
-        self.vertices = np.asarray(center, dtype=np.float32) + radius * np.asarray(
+        self.vertices = radius * np.asarray(
             [
                 [ratio * np.cos(phi), np.sin(phi)]
                 for phi in list(np.linspace(0, 2 * np.pi, resolution)) + [0]
@@ -339,6 +340,7 @@ class CircleShader:
         self.vertices = np.ravel(self.vertices)
 
         self._compile()
+        self.center_loc = glGetUniformLocation(self.shader, "center")
         self._setup_vertex_array()
 
     def _setup_vertex_array(self):
@@ -371,9 +373,12 @@ class CircleShader:
         vertex_src = """#version 430 core
 layout (location = 0) in vec2 aPos;
 
+uniform vec2 center;
+
+
 void main()
 {
-    gl_Position = vec4(aPos, -1.0, 1.0);
+    gl_Position = vec4(center,-1.0, 1.0)+vec4(aPos, -1.0, 1.0);
 }
 """
         fragment_src = f"""#version 430 core
@@ -395,7 +400,7 @@ void main()
     def draw(self):
         current_line_width = glGetFloat(GL_LINE_WIDTH)
         glLineWidth(self.linewidth)
-
+        glUniform2f(self.center_loc, self.center[0], self.center[1])
         self.use()
         glBindVertexArray(self.VAO)
         glDrawArrays(GL_LINE_STRIP, 0, len(self.vertices) // 2)
